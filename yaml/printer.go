@@ -2,6 +2,7 @@ package yaml
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/fatih/color"
@@ -34,6 +35,10 @@ type RenderProperties struct {
 }
 
 func (p RenderProperties) RenderFunc(t *token.Token) RenderFunc {
+	if t.Indicator == token.BlockStructureIndicator {
+		return p.RenderFunc(t.Prev)
+	}
+
 	switch t.PreviousType() {
 	case token.AnchorType:
 		return p.Anchor
@@ -67,16 +72,19 @@ type Printer struct {
 	HighlightedProps RenderProperties
 }
 
-func (p *Printer) Print(file *ast.File, highlight ast.Node) string {
+func (p *Printer) Print(file *ast.File, highlight string) string {
 	tokens := lexer.Tokenize(file.String())
 	if len(tokens) == 0 {
 		return ""
 	}
 
+	highlightTokens := QueryTokens(file, highlight)
+
 	var texts []string
 	for _, t := range tokens {
 		lines := strings.Split(t.Origin, "\n")
-		renderFunc := p.DefaultProps.RenderFunc(t)
+		_, highlighted := highlightTokens[*t.Position]
+		renderFunc := p.RenderFunc(t, highlighted)
 
 		if len(lines) == 1 {
 			line := renderFunc(lines[0])
@@ -105,9 +113,17 @@ func (p *Printer) Print(file *ast.File, highlight ast.Node) string {
 	return strings.Join(texts, "\n")
 }
 
+func (p *Printer) RenderFunc(t *token.Token, highlighted bool) RenderFunc {
+	if highlighted {
+		return p.HighlightedProps.RenderFunc(t)
+	}
+
+	return p.DefaultProps.RenderFunc(t)
+}
+
 var defaultPrinter = newDefaultPrinter()
 
-func Print(file *ast.File, highlight ast.Node) string {
+func Print(file *ast.File, highlight string) string {
 	return defaultPrinter.Print(file, highlight)
 }
 
@@ -130,4 +146,103 @@ func newDefaultPrinter() Printer {
 			Number: ColorRenderFunc(color.New(color.FgHiMagenta, color.BgYellow)),
 		},
 	}
+}
+
+func QueryTokens(file *ast.File, path string) map[token.Position]*token.Token {
+	//TODO support multi docs yaml
+	doc := file.Docs[0]
+	n := FindNode(doc, path)
+	if n == nil {
+		return nil
+	}
+
+	tokens := TokensFromNode(n)
+	tokenMap := make(map[token.Position]*token.Token)
+	for _, t := range tokens {
+		tokenMap[*t.Position] = t
+	}
+
+	return tokenMap
+}
+
+func FindNode(n ast.Node, path string) ast.Node {
+	if MatchPaths(n, path) {
+		return n
+	}
+
+	switch node := n.(type) {
+	case *ast.MappingNode:
+		for _, valueNode := range node.Values {
+			if node := FindNode(valueNode, path); node != nil {
+				return node
+			}
+		}
+	case *ast.MappingValueNode:
+		if node := FindNode(node.Key, path); node != nil {
+			return node
+		}
+		if node := FindNode(node.Value, path); node != nil {
+			return node
+		}
+	case *ast.SequenceNode:
+		for _, valueNode := range node.Values {
+			if node := FindNode(valueNode, path); node != nil {
+				return node
+			}
+		}
+	case *ast.DocumentNode:
+		if node := FindNode(node.Body, path); node != nil {
+			return node
+		}
+	}
+
+	return nil
+}
+
+func TokensFromNode(n ast.Node) token.Tokens {
+	var tokens token.Tokens
+	tokens = append(tokens, n.GetToken())
+
+	switch node := n.(type) {
+	case *ast.MappingNode:
+		for _, valueNode := range node.Values {
+			tokens = append(tokens, TokensFromNode(valueNode)...)
+		}
+	case *ast.MappingValueNode:
+		tokens = append(tokens, TokensFromNode(node.Key)...)
+		tokens = append(tokens, TokensFromNode(node.Value)...)
+	case *ast.SequenceNode:
+		for _, valueNode := range node.Values {
+			tokens = append(tokens, TokensFromNode(valueNode)...)
+		}
+	}
+
+	return tokens
+}
+
+func MatchPaths(n ast.Node, path string) bool {
+	if path == "" {
+		return false
+	}
+
+	nodePath := n.GetPath()
+
+	if nodePath == "" {
+		return false
+	}
+
+	switch node := n.(type) {
+	case *ast.MappingNode:
+		nodePath = TrimPath(node.Path)
+	}
+
+	nodePath = nodePath[1:]
+
+	re := regexp.MustCompile(`\[(\d+)\]`)
+	nodePath = re.ReplaceAllString(nodePath, ".$1")
+	return nodePath == path
+}
+
+func TrimPath(path string) string {
+	return path[:strings.LastIndex(path, ".")]
 }

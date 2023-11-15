@@ -5,6 +5,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	"github.com/charmbracelet/bubbletea"
 	"github.com/goccy/go-yaml/ast"
+	"github.com/goccy/go-yaml/lexer"
 	"github.com/goccy/go-yaml/parser"
 
 	"github.com/semihbkgr/yn/yaml"
@@ -29,12 +30,19 @@ func initModel() model {
 func NewModel(opts Options) (tea.Model, error) {
 	m := initModel()
 	m.opts = opts
+
 	file, err := parser.ParseBytes(opts.Input, parser.ParseComments)
 	if err != nil {
 		return nil, err
 	}
+	// fix the tokens' positions
+	file, err = parser.Parse(lexer.Tokenize(file.String()), parser.ParseComments)
+	if err != nil {
+		return nil, err
+	}
+
 	m.file = file
-	m.viewport.SetContent(yaml.Print(file, nil))
+	m.viewport.SetContent(yaml.Print(file, ""))
 	return m, nil
 }
 
