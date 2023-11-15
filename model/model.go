@@ -4,12 +4,18 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/viewport"
 	"github.com/charmbracelet/bubbletea"
+	"github.com/goccy/go-yaml/ast"
+	"github.com/goccy/go-yaml/parser"
+
+	"github.com/semihbkgr/yn/yaml"
 )
 
 type model struct {
 	viewport viewport.Model
 
 	opts Options
+
+	file *ast.File
 }
 
 func initModel() model {
@@ -20,11 +26,16 @@ func initModel() model {
 	}
 }
 
-func NewModel(opts Options) tea.Model {
+func NewModel(opts Options) (tea.Model, error) {
 	m := initModel()
 	m.opts = opts
-	m.viewport.SetContent(string(opts.Input))
-	return m
+	file, err := parser.ParseBytes(opts.Input, parser.ParseComments)
+	if err != nil {
+		return nil, err
+	}
+	m.file = file
+	m.viewport.SetContent(yaml.Print(file, nil))
+	return m, nil
 }
 
 func (m model) Init() tea.Cmd {

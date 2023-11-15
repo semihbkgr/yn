@@ -11,6 +11,7 @@ import (
 
 type Options struct {
 	Input []byte
+	Data  any
 }
 
 func NewOptions(command *cobra.Command) (Options, error) {
@@ -29,6 +30,8 @@ func (o Options) Verify() error {
 		return errors.New("input cannot be empty")
 	}
 
+	//TODO validate yaml
+
 	return nil
 }
 
@@ -37,13 +40,16 @@ func RunProgram(_ context.Context, opts Options) error {
 		return err
 	}
 
-	m := NewModel(opts)
+	m, err := NewModel(opts)
+	if err != nil {
+		return err
+	}
 
 	p := tea.NewProgram(
 		m,
 		tea.WithAltScreen(),
 		tea.WithMouseCellMotion(),
 	)
-	_, err := p.Run()
+	_, err = p.Run()
 	return err
 }
