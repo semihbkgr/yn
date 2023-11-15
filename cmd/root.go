@@ -1,23 +1,21 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
+
+	"github.com/semihbkgr/yn/model"
 )
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "yn",
 	Short: "yn yaml navigator",
-	Long: `yaml navigator
-yn < yaml
+	Long: `yn
+yaml navigator
 `,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Fprintf(cmd.OutOrStdout(), "yn")
-		return nil
-	},
+	RunE: run,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
@@ -31,4 +29,13 @@ func Execute() {
 
 func init() {
 	//rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+}
+
+func run(cmd *cobra.Command, args []string) error {
+	opts, err := model.NewOptions(cmd)
+	if err != nil {
+		return err
+	}
+
+	return model.RunProgram(cmd.Context(), opts)
 }
