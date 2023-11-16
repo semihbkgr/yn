@@ -9,6 +9,7 @@ import (
 	"github.com/goccy/go-yaml/ast"
 	"github.com/goccy/go-yaml/lexer"
 	"github.com/goccy/go-yaml/token"
+	"github.com/muesli/reflow/ansi"
 )
 
 type RenderFunc func(string) string
@@ -21,6 +22,25 @@ func ColorRenderFunc(color *color.Color) RenderFunc {
 
 func EmptyRenderFunc() RenderFunc {
 	return func(s string) string {
+		return s
+	}
+}
+
+func CleanWhitespaceRenderFunc() RenderFunc {
+	return func(s string) string {
+		c := strings.Count(s, " ")
+		if ansi.PrintableRuneWidth(s) == c {
+			return strings.Repeat(" ", c)
+		}
+		return s
+	}
+}
+
+func MuxRenderFunc(fns ...RenderFunc) RenderFunc {
+	return func(s string) string {
+		for _, fn := range fns {
+			s = fn(s)
+		}
 		return s
 	}
 }
@@ -83,7 +103,11 @@ func (p *Printer) Print(file *ast.File, highlight string) string {
 	var texts []string
 	for _, t := range tokens {
 		lines := strings.Split(t.Origin, "\n")
+
 		_, highlighted := highlightTokens[*t.Position]
+		if t.Indicator == token.BlockStructureIndicator {
+			_, highlighted = highlightTokens[*t.Next.Position]
+		}
 		renderFunc := p.RenderFunc(t, highlighted)
 
 		if len(lines) == 1 {
@@ -130,20 +154,56 @@ func Print(file *ast.File, highlight string) string {
 func newDefaultPrinter() Printer {
 	return Printer{
 		DefaultProps: RenderProperties{
-			MapKey: ColorRenderFunc(color.New(color.FgHiCyan)),
-			Anchor: ColorRenderFunc(color.New(color.FgHiYellow)),
-			Alias:  ColorRenderFunc(color.New(color.FgHiYellow)),
-			Bool:   ColorRenderFunc(color.New(color.FgHiMagenta)),
-			String: ColorRenderFunc(color.New(color.FgHiGreen)),
-			Number: ColorRenderFunc(color.New(color.FgHiMagenta)),
+			MapKey: MuxRenderFunc(
+				ColorRenderFunc(color.New(color.FgHiCyan)),
+				CleanWhitespaceRenderFunc(),
+			),
+			Anchor: MuxRenderFunc(
+				ColorRenderFunc(color.New(color.FgHiYellow)),
+				CleanWhitespaceRenderFunc(),
+			),
+			Alias: MuxRenderFunc(
+				ColorRenderFunc(color.New(color.FgHiYellow)),
+				CleanWhitespaceRenderFunc(),
+			),
+			Bool: MuxRenderFunc(
+				ColorRenderFunc(color.New(color.FgHiMagenta)),
+				CleanWhitespaceRenderFunc(),
+			),
+			String: MuxRenderFunc(
+				ColorRenderFunc(color.New(color.FgHiGreen)),
+				CleanWhitespaceRenderFunc(),
+			),
+			Number: MuxRenderFunc(
+				ColorRenderFunc(color.New(color.FgHiMagenta)),
+				CleanWhitespaceRenderFunc(),
+			),
 		},
 		HighlightedProps: RenderProperties{
-			MapKey: ColorRenderFunc(color.New(color.FgHiCyan, color.BgYellow)),
-			Anchor: ColorRenderFunc(color.New(color.FgHiYellow, color.BgYellow)),
-			Alias:  ColorRenderFunc(color.New(color.FgHiYellow, color.BgYellow)),
-			Bool:   ColorRenderFunc(color.New(color.FgHiMagenta, color.BgYellow)),
-			String: ColorRenderFunc(color.New(color.FgHiGreen, color.BgYellow)),
-			Number: ColorRenderFunc(color.New(color.FgHiMagenta, color.BgYellow)),
+			MapKey: MuxRenderFunc(
+				ColorRenderFunc(color.New(color.FgCyan, color.BgHiYellow)),
+				CleanWhitespaceRenderFunc(),
+			),
+			Anchor: MuxRenderFunc(
+				ColorRenderFunc(color.New(color.FgYellow, color.BgHiYellow)),
+				CleanWhitespaceRenderFunc(),
+			),
+			Alias: MuxRenderFunc(
+				ColorRenderFunc(color.New(color.FgYellow, color.BgHiYellow)),
+				CleanWhitespaceRenderFunc(),
+			),
+			Bool: MuxRenderFunc(
+				ColorRenderFunc(color.New(color.FgMagenta, color.BgHiYellow)),
+				CleanWhitespaceRenderFunc(),
+			),
+			String: MuxRenderFunc(
+				ColorRenderFunc(color.New(color.FgGreen, color.BgHiYellow)),
+				CleanWhitespaceRenderFunc(),
+			),
+			Number: MuxRenderFunc(
+				ColorRenderFunc(color.New(color.FgMagenta, color.BgHiYellow)),
+				CleanWhitespaceRenderFunc(),
+			),
 		},
 	}
 }
