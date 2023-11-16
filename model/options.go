@@ -35,7 +35,7 @@ func (o Options) Verify() error {
 	return nil
 }
 
-func RunProgram(_ context.Context, opts Options) error {
+func RunProgram(ctx context.Context, opts Options) error {
 	if err := opts.Verify(); err != nil {
 		return err
 	}
@@ -45,10 +45,9 @@ func RunProgram(_ context.Context, opts Options) error {
 		return err
 	}
 
-	p := tea.NewProgram(
-		m,
+	p := tea.NewProgram(m,
 		tea.WithAltScreen(),
-		tea.WithMouseCellMotion(),
+		tea.WithContext(ctx),
 	)
 	_, err = p.Run()
 	return err
