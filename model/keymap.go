@@ -3,15 +3,16 @@ package model
 import "github.com/charmbracelet/bubbles/key"
 
 type KeyMap struct {
-	Quit     key.Binding
-	Down     key.Binding
-	Up       key.Binding
-	Navigate key.Binding
+	Quit       key.Binding
+	Down       key.Binding
+	Up         key.Binding
+	Navigate   key.Binding
+	LineNumber key.Binding
 }
 
 func (k KeyMap) ShortHelp() []key.Binding {
 	return []key.Binding{
-		k.Quit, k.Navigate,
+		k.Quit, k.Navigate, k.LineNumber,
 	}
 }
 
@@ -38,6 +39,10 @@ func DefaultKeyMap() KeyMap {
 		Navigate: key.NewBinding(
 			key.WithKeys("enter"),
 			key.WithHelp("enter", "navigate"),
+		),
+		LineNumber: key.NewBinding(
+			key.WithKeys("ctrl+l"),
+			key.WithHelp("ctrl+l", "line number"),
 		),
 	}
 }

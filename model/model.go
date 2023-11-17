@@ -26,6 +26,8 @@ type model struct {
 	opts Options
 
 	file *ast.File
+
+	lineNumber bool
 }
 
 func initModel() model {
@@ -84,6 +86,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.Navigate()
 			return m, nil
 		}
+		if key.Matches(msg, m.keymap.LineNumber) {
+			m.lineNumber = !m.lineNumber
+			m.Navigate()
+			return m, nil
+		}
 	case tea.WindowSizeMsg:
 		m.viewport.Width = msg.Width
 		m.viewport.Height = msg.Height - 2
@@ -111,7 +118,7 @@ func (m model) View() string {
 
 func (m *model) Navigate() {
 	path := m.input.Value()
-	content, navigated := yaml.Print(m.file, path)
+	content, navigated := yaml.Print(m.file, path, m.lineNumber)
 	m.viewport.SetContent(content)
 	if navigated {
 		m.input.TextStyle = m.input.TextStyle.Foreground(lipgloss.ANSIColor(10))

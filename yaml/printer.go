@@ -90,9 +90,10 @@ func (p RenderProperties) RenderFunc(t *token.Token) RenderFunc {
 type Printer struct {
 	DefaultProps     RenderProperties
 	HighlightedProps RenderProperties
+	LineNumberFormat func(n int, all int) string
 }
 
-func (p *Printer) Print(file *ast.File, highlight string) (string, bool) {
+func (p *Printer) Print(file *ast.File, highlight string, lineNumber bool) (string, bool) {
 	tokens := lexer.Tokenize(file.String())
 	if len(tokens) == 0 {
 		return "", false
@@ -101,6 +102,8 @@ func (p *Printer) Print(file *ast.File, highlight string) (string, bool) {
 	highlightTokens := QueryTokens(file, highlight)
 
 	var texts []string
+	currentLineNumber := tokens[0].Position.Line
+	totalLineNumber := tokens[len(tokens)-1].Position.Line
 	for _, t := range tokens {
 		lines := strings.Split(t.Origin, "\n")
 
@@ -112,8 +115,14 @@ func (p *Printer) Print(file *ast.File, highlight string) (string, bool) {
 
 		if len(lines) == 1 {
 			line := renderFunc(lines[0])
+			linePrefix := ""
+			if lineNumber {
+				linePrefix = p.LineNumberFormat(currentLineNumber, totalLineNumber)
+			}
+
 			if len(texts) == 0 {
-				texts = append(texts, line)
+				texts = append(texts, linePrefix+line)
+				currentLineNumber++
 			} else {
 				text := texts[len(texts)-1]
 				texts[len(texts)-1] = text + line
@@ -121,15 +130,22 @@ func (p *Printer) Print(file *ast.File, highlight string) (string, bool) {
 		} else {
 			for idx, src := range lines {
 				line := renderFunc(src)
+				linePrefix := ""
+				if lineNumber {
+					linePrefix = p.LineNumberFormat(currentLineNumber, totalLineNumber)
+				}
+
 				if idx == 0 {
 					if len(texts) == 0 {
-						texts = append(texts, line)
+						texts = append(texts, linePrefix+line)
+						currentLineNumber++
 					} else {
 						text := texts[len(texts)-1]
 						texts[len(texts)-1] = text + line
 					}
 				} else {
-					texts = append(texts, fmt.Sprintf("%s", line))
+					texts = append(texts, fmt.Sprintf("%s%s", linePrefix, line))
+					currentLineNumber++
 				}
 			}
 		}
@@ -147,8 +163,8 @@ func (p *Printer) RenderFunc(t *token.Token, highlighted bool) RenderFunc {
 
 var defaultPrinter = newDefaultPrinter()
 
-func Print(file *ast.File, highlight string) (string, bool) {
-	return defaultPrinter.Print(file, highlight)
+func Print(file *ast.File, highlight string, lineNumber bool) (string, bool) {
+	return defaultPrinter.Print(file, highlight, lineNumber)
 }
 
 func newDefaultPrinter() Printer {
@@ -204,6 +220,14 @@ func newDefaultPrinter() Printer {
 				ColorRenderFunc(color.New(color.FgMagenta, color.BgHiYellow)),
 				CleanWhitespaceRenderFunc(),
 			),
+		},
+		LineNumberFormat: func(n int, all int) string {
+			allLen := len(fmt.Sprintf("%d", all))
+			numberLen := len(fmt.Sprintf("%d", n))
+			padding := strings.Repeat(" ", allLen-numberLen)
+			number := color.New(color.FgHiWhite, color.Bold).Sprintf("%d", n)
+			separator := color.New(color.FgHiBlack).Sprint("|")
+			return fmt.Sprintf("%s%s%s", padding, number, separator)
 		},
 	}
 }

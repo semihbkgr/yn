@@ -11,7 +11,6 @@ import (
 
 type Options struct {
 	Input []byte
-	Data  any
 }
 
 func NewOptions(command *cobra.Command) (Options, error) {
