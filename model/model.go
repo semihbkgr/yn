@@ -47,24 +47,17 @@ func initModel() model {
 	}
 }
 
-func NewModel(opts Options) (tea.Model, error) {
+func NewModel(opts Options) tea.Model {
 	m := initModel()
 	m.opts = opts
 
-	file, err := parser.ParseBytes(opts.Input, parser.ParseComments)
-	if err != nil {
-		return nil, err
-	}
 	// fix the tokens' positions
-	file, err = parser.Parse(lexer.Tokenize(file.String()), parser.ParseComments)
-	if err != nil {
-		return nil, err
-	}
-
+	file, _ := parser.Parse(lexer.Tokenize(opts.File.String()), parser.ParseComments)
 	m.file = file
+
 	m.Navigate()
 
-	return m, nil
+	return m
 }
 
 func (m model) Init() tea.Cmd {

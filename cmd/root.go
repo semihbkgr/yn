@@ -14,8 +14,10 @@ var rootCmd = &cobra.Command{
 	Short: "yn yaml navigator",
 	Long: `yn
 yaml navigator
+yn < file.yaml
 `,
-	RunE: run,
+	SilenceUsage: true,
+	RunE:         run,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
