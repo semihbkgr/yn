@@ -9,6 +9,18 @@ type KeyMap struct {
 	Navigate key.Binding
 }
 
+func (k KeyMap) ShortHelp() []key.Binding {
+	return []key.Binding{
+		k.Quit, k.Navigate,
+	}
+}
+
+func (k KeyMap) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		k.ShortHelp(),
+	}
+}
+
 func DefaultKeyMap() KeyMap {
 	return KeyMap{
 		Quit: key.NewBinding(

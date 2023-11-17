@@ -3,10 +3,12 @@ package model
 import (
 	"fmt"
 
+	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	"github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/goccy/go-yaml/ast"
 	"github.com/goccy/go-yaml/lexer"
 	"github.com/goccy/go-yaml/parser"
@@ -17,6 +19,7 @@ import (
 type model struct {
 	viewport viewport.Model
 	input    textinput.Model
+	help     help.Model
 
 	keymap KeyMap
 
@@ -28,10 +31,16 @@ type model struct {
 func initModel() model {
 	v := viewport.New(0, 0)
 	i := textinput.New()
+	i.TextStyle = lipgloss.NewStyle().Bold(true)
+
+	h := help.New()
+	h.ShowAll = false
+	h.ShortSeparator = "    "
 
 	return model{
 		viewport: v,
 		input:    i,
+		help:     h,
 		keymap:   DefaultKeyMap(),
 	}
 }
@@ -51,7 +60,8 @@ func NewModel(opts Options) (tea.Model, error) {
 	}
 
 	m.file = file
-	m.viewport.SetContent(yaml.Print(file, ""))
+	m.Navigate()
+
 	return m, nil
 }
 
@@ -76,7 +86,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	case tea.WindowSizeMsg:
 		m.viewport.Width = msg.Width
-		m.viewport.Height = msg.Height - 1
+		m.viewport.Height = msg.Height - 2
+		m.input.Width = msg.Width
+		m.help.Width = msg.Width
+		return m, nil
 	}
 
 	var cmds []tea.Cmd
@@ -93,10 +106,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	return fmt.Sprintf("%s\n%s", m.viewport.View(), m.input.View())
+	return fmt.Sprintf("%s\n%s\n%s", m.viewport.View(), m.input.View(), m.help.View(m.keymap))
 }
 
 func (m *model) Navigate() {
 	path := m.input.Value()
-	m.viewport.SetContent(yaml.Print(m.file, path))
+	content, navigated := yaml.Print(m.file, path)
+	m.viewport.SetContent(content)
+	if navigated {
+		m.input.TextStyle = m.input.TextStyle.Foreground(lipgloss.ANSIColor(10))
+	} else {
+		m.input.TextStyle = m.input.TextStyle.Foreground(lipgloss.ANSIColor(9))
+	}
 }

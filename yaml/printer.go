@@ -92,10 +92,10 @@ type Printer struct {
 	HighlightedProps RenderProperties
 }
 
-func (p *Printer) Print(file *ast.File, highlight string) string {
+func (p *Printer) Print(file *ast.File, highlight string) (string, bool) {
 	tokens := lexer.Tokenize(file.String())
 	if len(tokens) == 0 {
-		return ""
+		return "", false
 	}
 
 	highlightTokens := QueryTokens(file, highlight)
@@ -134,7 +134,7 @@ func (p *Printer) Print(file *ast.File, highlight string) string {
 			}
 		}
 	}
-	return strings.Join(texts, "\n")
+	return strings.Join(texts, "\n"), len(highlightTokens) > 0
 }
 
 func (p *Printer) RenderFunc(t *token.Token, highlighted bool) RenderFunc {
@@ -147,7 +147,7 @@ func (p *Printer) RenderFunc(t *token.Token, highlighted bool) RenderFunc {
 
 var defaultPrinter = newDefaultPrinter()
 
-func Print(file *ast.File, highlight string) string {
+func Print(file *ast.File, highlight string) (string, bool) {
 	return defaultPrinter.Print(file, highlight)
 }
 
