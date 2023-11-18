@@ -49,17 +49,22 @@ func (o *Options) Verify() error {
 	return nil
 }
 
-func RunProgram(ctx context.Context, opts *Options) error {
+func RunProgram(ctx context.Context, opts *Options) (string, error) {
 	if err := opts.Verify(); err != nil {
-		return err
+		return "", err
 	}
 
 	m := NewModel(*opts)
-
 	p := tea.NewProgram(m,
 		tea.WithAltScreen(),
 		tea.WithContext(ctx),
 	)
-	_, err := p.Run()
-	return err
+
+	m, err := p.Run()
+	if err != nil {
+		return "", err
+	}
+
+	model := m.(model)
+	return model.Output(), nil
 }

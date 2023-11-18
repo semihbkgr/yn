@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -39,5 +40,10 @@ func run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	return model.RunProgram(cmd.Context(), opts)
+	output, err := model.RunProgram(cmd.Context(), opts)
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprint(cmd.OutOrStdout(), output)
+	return err
 }

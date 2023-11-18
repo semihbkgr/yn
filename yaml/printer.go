@@ -93,13 +93,13 @@ type Printer struct {
 	LineNumberFormat func(n int, all int) string
 }
 
-func (p *Printer) Print(file *ast.File, highlight string, lineNumber bool) (string, bool) {
+func (p *Printer) Print(file *ast.File, path string, lineNumber bool) (string, []ast.Node) {
 	tokens := lexer.Tokenize(file.String())
 	if len(tokens) == 0 {
-		return "", false
+		return "", nil
 	}
 
-	highlightTokens := QueryTokens(file, highlight)
+	queryResult := QueryTokens(file, path)
 
 	var texts []string
 	currentLineNumber := tokens[0].Position.Line
@@ -107,9 +107,9 @@ func (p *Printer) Print(file *ast.File, highlight string, lineNumber bool) (stri
 	for _, t := range tokens {
 		lines := strings.Split(t.Origin, "\n")
 
-		_, highlighted := highlightTokens[*t.Position]
+		_, highlighted := queryResult.TokensMap[*t.Position]
 		if t.Indicator == token.BlockStructureIndicator {
-			_, highlighted = highlightTokens[*t.Next.Position]
+			_, highlighted = queryResult.TokensMap[*t.Next.Position]
 		}
 		renderFunc := p.RenderFunc(t, highlighted)
 
@@ -150,7 +150,8 @@ func (p *Printer) Print(file *ast.File, highlight string, lineNumber bool) (stri
 			}
 		}
 	}
-	return strings.Join(texts, "\n"), len(highlightTokens) > 0
+
+	return strings.Join(texts, "\n"), queryResult.Nodes
 }
 
 func (p *Printer) RenderFunc(t *token.Token, highlighted bool) RenderFunc {
@@ -163,8 +164,8 @@ func (p *Printer) RenderFunc(t *token.Token, highlighted bool) RenderFunc {
 
 var defaultPrinter = newDefaultPrinter()
 
-func Print(file *ast.File, highlight string, lineNumber bool) (string, bool) {
-	return defaultPrinter.Print(file, highlight, lineNumber)
+func Print(file *ast.File, path string, lineNumber bool) (string, []ast.Node) {
+	return defaultPrinter.Print(file, path, lineNumber)
 }
 
 func newDefaultPrinter() Printer {
@@ -232,21 +233,30 @@ func newDefaultPrinter() Printer {
 	}
 }
 
-func QueryTokens(file *ast.File, path string) map[token.Position]*token.Token {
-	tokenMap := make(map[token.Position]*token.Token)
+type QueryResult struct {
+	Nodes     []ast.Node
+	TokensMap map[token.Position]*token.Token
+}
+
+func QueryTokens(file *ast.File, path string) QueryResult {
+	var nodes []ast.Node
+	tokensMap := make(map[token.Position]*token.Token)
 	for _, doc := range file.Docs {
 		n := FindNode(doc, path)
 		if n == nil {
 			continue
 		}
+		nodes = append(nodes, n)
 
 		tokens := TokensFromNode(n)
 		for _, t := range tokens {
-			tokenMap[*t.Position] = t
+			tokensMap[*t.Position] = t
 		}
 	}
 
-	return tokenMap
+	return QueryResult{
+		Nodes: nodes, TokensMap: tokensMap,
+	}
 }
 
 func FindNode(n ast.Node, path string) ast.Node {

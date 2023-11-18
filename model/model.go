@@ -2,6 +2,7 @@ package model
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/help"
 	"github.com/charmbracelet/bubbles/key"
@@ -26,6 +27,9 @@ type model struct {
 	opts Options
 
 	file *ast.File
+
+	navigatePath   string
+	navigatedNodes []ast.Node
 
 	lineNumber bool
 }
@@ -111,11 +115,27 @@ func (m model) View() string {
 
 func (m *model) Navigate() {
 	path := m.input.Value()
-	content, navigated := yaml.Print(m.file, path, m.lineNumber)
+	m.navigatePath = path
+	content, navigatedNodes := yaml.Print(m.file, path, m.lineNumber)
 	m.viewport.SetContent(content)
-	if navigated {
+	m.navigatedNodes = navigatedNodes
+	if len(navigatedNodes) > 0 {
 		m.input.TextStyle = m.input.TextStyle.Foreground(lipgloss.ANSIColor(10))
 	} else {
 		m.input.TextStyle = m.input.TextStyle.Foreground(lipgloss.ANSIColor(9))
 	}
+}
+
+func (m *model) Output() string {
+	if m.navigatePath == "" || len(m.navigatedNodes) == 0 {
+		return ""
+	}
+
+	var nodes []string
+	for _, node := range m.navigatedNodes {
+		nodes = append(nodes, node.String())
+	}
+	nodesStr := strings.Join(nodes, "\n---\n")
+
+	return fmt.Sprintf("%s\n\n%s\n", m.navigatePath, nodesStr)
 }
