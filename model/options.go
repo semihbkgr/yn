@@ -5,11 +5,16 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/goccy/go-yaml/ast"
 	"github.com/goccy/go-yaml/parser"
 	"github.com/spf13/cobra"
+)
+
+const (
+	FlagFile = "file"
 )
 
 type Options struct {
@@ -20,9 +25,22 @@ type Options struct {
 }
 
 func NewOptions(command *cobra.Command) (*Options, error) {
-	b, err := io.ReadAll(command.InOrStdin())
+	file, err := command.Flags().GetString(FlagFile)
 	if err != nil {
 		return nil, err
+	}
+
+	var b []byte
+	if file != "" {
+		b, err = os.ReadFile(file)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		b, err = io.ReadAll(command.InOrStdin())
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &Options{

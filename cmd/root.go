@@ -31,7 +31,7 @@ func Execute() {
 }
 
 func init() {
-	//rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	rootCmd.Flags().StringP(model.FlagFile, "f", "", "input file")
 }
 
 func run(cmd *cobra.Command, args []string) error {
