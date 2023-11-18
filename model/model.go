@@ -28,8 +28,9 @@ type model struct {
 
 	file *ast.File
 
-	navigatePath   string
-	navigatedNodes []ast.Node
+	navigatePath       string
+	navigatedNodes     []ast.Node
+	navigatedNodeIndex int
 
 	lineNumber bool
 }
@@ -80,7 +81,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, cmd
 		}
 		if key.Matches(msg, m.keymap.Navigate) {
+			if m.navigatePath == m.input.Value() {
+				m.NextNavigatedNode()
+				return m, nil
+			}
+
 			m.Navigate()
+			m.navigatedNodeIndex = -1
+			m.NextNavigatedNode()
 			return m, nil
 		}
 		if key.Matches(msg, m.keymap.LineNumber) {
@@ -91,7 +99,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.viewport.Width = msg.Width
 		m.viewport.Height = msg.Height - 2
-		m.input.Width = msg.Width
+		m.input.Width = msg.Width - 10
 		m.help.Width = msg.Width
 		return m, nil
 	}
@@ -110,7 +118,16 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	return fmt.Sprintf("%s\n%s\n%s", m.viewport.View(), m.input.View(), m.help.View(m.keymap))
+	input := m.input.View()
+	if len(m.navigatedNodes) > 0 {
+		navigateIndex := fmt.Sprintf("%d/%d", m.navigatedNodeIndex+1, len(m.navigatedNodes))
+		input += lipgloss.NewStyle().Foreground(lipgloss.ANSIColor(10)).Render(navigateIndex)
+	}
+
+	return fmt.Sprintf("%s\n%s\n%s",
+		m.viewport.View(),
+		input,
+		m.help.View(m.keymap))
 }
 
 func (m *model) Navigate() {
@@ -138,4 +155,20 @@ func (m *model) Output() string {
 	nodesStr := strings.Join(nodes, "\n---\n")
 
 	return fmt.Sprintf("%s\n\n%s\n", m.navigatePath, nodesStr)
+}
+
+func (m *model) NextNavigatedNode() {
+	if len(m.navigatedNodes) == 0 {
+		return
+	}
+
+	m.navigatedNodeIndex++
+	if m.navigatedNodeIndex >= len(m.navigatedNodes) {
+		m.navigatedNodeIndex = 0
+	}
+
+	navigatedNode := m.navigatedNodes[m.navigatedNodeIndex]
+	scrollLine := navigatedNode.GetToken().Position.Line
+	scrollYOffset := scrollLine - m.viewport.Height/2
+	m.viewport.SetYOffset(scrollYOffset)
 }
