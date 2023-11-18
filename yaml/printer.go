@@ -233,17 +233,17 @@ func newDefaultPrinter() Printer {
 }
 
 func QueryTokens(file *ast.File, path string) map[token.Position]*token.Token {
-	//TODO support multi docs yaml
-	doc := file.Docs[0]
-	n := FindNode(doc, path)
-	if n == nil {
-		return nil
-	}
-
-	tokens := TokensFromNode(n)
 	tokenMap := make(map[token.Position]*token.Token)
-	for _, t := range tokens {
-		tokenMap[*t.Position] = t
+	for _, doc := range file.Docs {
+		n := FindNode(doc, path)
+		if n == nil {
+			continue
+		}
+
+		tokens := TokensFromNode(n)
+		for _, t := range tokens {
+			tokenMap[*t.Position] = t
+		}
 	}
 
 	return tokenMap
