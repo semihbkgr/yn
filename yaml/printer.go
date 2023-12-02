@@ -9,7 +9,6 @@ import (
 	"github.com/goccy/go-yaml/ast"
 	"github.com/goccy/go-yaml/lexer"
 	"github.com/goccy/go-yaml/token"
-	"github.com/muesli/reflow/ansi"
 )
 
 type RenderFunc func(string) string
@@ -22,25 +21,6 @@ func ColorRenderFunc(color *color.Color) RenderFunc {
 
 func EmptyRenderFunc() RenderFunc {
 	return func(s string) string {
-		return s
-	}
-}
-
-func CleanWhitespaceRenderFunc() RenderFunc {
-	return func(s string) string {
-		c := strings.Count(s, " ")
-		if ansi.PrintableRuneWidth(s) == c {
-			return strings.Repeat(" ", c)
-		}
-		return s
-	}
-}
-
-func MuxRenderFunc(fns ...RenderFunc) RenderFunc {
-	return func(s string) string {
-		for _, fn := range fns {
-			s = fn(s)
-		}
 		return s
 	}
 }
@@ -108,8 +88,10 @@ func (p *Printer) Print(file *ast.File, path string, lineNumber bool) (string, [
 		lines := strings.Split(t.Origin, "\n")
 
 		_, highlighted := queryResult.TokensMap[*t.Position]
+		parentNode := queryResult.ParentNodeMap[*t.Position]
 		if t.Indicator == token.BlockStructureIndicator {
-			_, highlighted = queryResult.TokensMap[*t.Next.Position]
+			_, highlighted = queryResult.TokensMap[*t.Prev.Position]
+			parentNode = queryResult.ParentNodeMap[*t.Prev.Position]
 		}
 		renderFunc := p.RenderFunc(t, highlighted)
 
@@ -129,7 +111,12 @@ func (p *Printer) Print(file *ast.File, path string, lineNumber bool) (string, [
 			}
 		} else {
 			for idx, src := range lines {
-				line := renderFunc(src)
+				indentNum := 0
+				if highlighted && idx > 0 {
+					indentNum = parentNode.GetToken().Position.IndentNum
+				}
+
+				line := fmt.Sprintf("%s%s", strings.Repeat(" ", indentNum), renderFunc(src[indentNum:]))
 				linePrefix := ""
 				if lineNumber {
 					linePrefix = p.LineNumberFormat(currentLineNumber, totalLineNumber)
@@ -171,56 +158,20 @@ func Print(file *ast.File, path string, lineNumber bool) (string, []ast.Node) {
 func newDefaultPrinter() Printer {
 	return Printer{
 		DefaultProps: RenderProperties{
-			MapKey: MuxRenderFunc(
-				ColorRenderFunc(color.New(color.FgHiCyan)),
-				CleanWhitespaceRenderFunc(),
-			),
-			Anchor: MuxRenderFunc(
-				ColorRenderFunc(color.New(color.FgHiYellow)),
-				CleanWhitespaceRenderFunc(),
-			),
-			Alias: MuxRenderFunc(
-				ColorRenderFunc(color.New(color.FgHiYellow)),
-				CleanWhitespaceRenderFunc(),
-			),
-			Bool: MuxRenderFunc(
-				ColorRenderFunc(color.New(color.FgHiMagenta)),
-				CleanWhitespaceRenderFunc(),
-			),
-			String: MuxRenderFunc(
-				ColorRenderFunc(color.New(color.FgHiGreen)),
-				CleanWhitespaceRenderFunc(),
-			),
-			Number: MuxRenderFunc(
-				ColorRenderFunc(color.New(color.FgHiMagenta)),
-				CleanWhitespaceRenderFunc(),
-			),
+			MapKey: ColorRenderFunc(color.New(color.FgHiCyan)),
+			Anchor: ColorRenderFunc(color.New(color.FgHiYellow)),
+			Alias:  ColorRenderFunc(color.New(color.FgHiYellow)),
+			Bool:   ColorRenderFunc(color.New(color.FgHiMagenta)),
+			String: ColorRenderFunc(color.New(color.FgHiGreen)),
+			Number: ColorRenderFunc(color.New(color.FgHiMagenta)),
 		},
 		HighlightedProps: RenderProperties{
-			MapKey: MuxRenderFunc(
-				ColorRenderFunc(color.New(color.FgCyan, color.BgHiYellow)),
-				CleanWhitespaceRenderFunc(),
-			),
-			Anchor: MuxRenderFunc(
-				ColorRenderFunc(color.New(color.FgYellow, color.BgHiYellow)),
-				CleanWhitespaceRenderFunc(),
-			),
-			Alias: MuxRenderFunc(
-				ColorRenderFunc(color.New(color.FgYellow, color.BgHiYellow)),
-				CleanWhitespaceRenderFunc(),
-			),
-			Bool: MuxRenderFunc(
-				ColorRenderFunc(color.New(color.FgMagenta, color.BgHiYellow)),
-				CleanWhitespaceRenderFunc(),
-			),
-			String: MuxRenderFunc(
-				ColorRenderFunc(color.New(color.FgGreen, color.BgHiYellow)),
-				CleanWhitespaceRenderFunc(),
-			),
-			Number: MuxRenderFunc(
-				ColorRenderFunc(color.New(color.FgMagenta, color.BgHiYellow)),
-				CleanWhitespaceRenderFunc(),
-			),
+			MapKey: ColorRenderFunc(color.New(color.FgCyan, color.BgHiYellow)),
+			Anchor: ColorRenderFunc(color.New(color.FgYellow, color.BgHiYellow)),
+			Alias:  ColorRenderFunc(color.New(color.FgYellow, color.BgHiYellow)),
+			Bool:   ColorRenderFunc(color.New(color.FgMagenta, color.BgHiYellow)),
+			String: ColorRenderFunc(color.New(color.FgGreen, color.BgHiYellow)),
+			Number: ColorRenderFunc(color.New(color.FgMagenta, color.BgHiYellow)),
 		},
 		LineNumberFormat: func(n int, all int) string {
 			allLen := len(fmt.Sprintf("%d", all))
@@ -234,13 +185,15 @@ func newDefaultPrinter() Printer {
 }
 
 type QueryResult struct {
-	Nodes     []ast.Node
-	TokensMap map[token.Position]*token.Token
+	Nodes         []ast.Node
+	TokensMap     map[token.Position]*token.Token
+	ParentNodeMap map[token.Position]ast.Node
 }
 
 func QueryTokens(file *ast.File, path string) QueryResult {
 	var nodes []ast.Node
 	tokensMap := make(map[token.Position]*token.Token)
+	parentNodeMap := make(map[token.Position]ast.Node)
 	for _, doc := range file.Docs {
 		n := FindNode(doc, path)
 		if n == nil {
@@ -251,11 +204,14 @@ func QueryTokens(file *ast.File, path string) QueryResult {
 		tokens := TokensFromNode(n)
 		for _, t := range tokens {
 			tokensMap[*t.Position] = t
+			parentNodeMap[*t.Position] = n
 		}
 	}
 
 	return QueryResult{
-		Nodes: nodes, TokensMap: tokensMap,
+		Nodes:         nodes,
+		TokensMap:     tokensMap,
+		ParentNodeMap: parentNodeMap,
 	}
 }
 
