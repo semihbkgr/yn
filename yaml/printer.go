@@ -26,17 +26,19 @@ func EmptyRenderFunc() RenderFunc {
 }
 
 type RenderProperties struct {
-	MapKey RenderFunc
-	Anchor RenderFunc
-	Alias  RenderFunc
-	Bool   RenderFunc
-	String RenderFunc
-	Number RenderFunc
+	MapKey    RenderFunc
+	Anchor    RenderFunc
+	Alias     RenderFunc
+	Bool      RenderFunc
+	String    RenderFunc
+	Number    RenderFunc
+	Null      RenderFunc
+	Indicator RenderFunc
 }
 
 func (p RenderProperties) RenderFunc(t *token.Token) RenderFunc {
-	if t.Indicator == token.BlockStructureIndicator {
-		return p.MapKey
+	if t.Indicator != token.NotIndicator {
+		return p.Indicator
 	}
 
 	switch t.PreviousType() {
@@ -62,6 +64,8 @@ func (p RenderProperties) RenderFunc(t *token.Token) RenderFunc {
 		return p.String
 	case token.IntegerType, token.FloatType:
 		return p.Number
+	case token.NullType:
+		return p.Null
 	}
 
 	return EmptyRenderFunc()
@@ -159,20 +163,24 @@ func Print(file *ast.File, path string, lineNumber bool) (string, []ast.Node) {
 func newDefaultPrinter() Printer {
 	return Printer{
 		DefaultProps: RenderProperties{
-			MapKey: ColorRenderFunc(color.New(color.FgHiCyan)),
-			Anchor: ColorRenderFunc(color.New(color.FgHiYellow)),
-			Alias:  ColorRenderFunc(color.New(color.FgHiYellow)),
-			Bool:   ColorRenderFunc(color.New(color.FgHiMagenta)),
-			String: ColorRenderFunc(color.New(color.FgHiGreen)),
-			Number: ColorRenderFunc(color.New(color.FgHiMagenta)),
+			MapKey:    ColorRenderFunc(color.New(color.FgHiCyan)),
+			Anchor:    ColorRenderFunc(color.New(color.FgHiYellow)),
+			Alias:     ColorRenderFunc(color.New(color.FgHiYellow)),
+			Bool:      ColorRenderFunc(color.New(color.FgHiMagenta)),
+			String:    ColorRenderFunc(color.New(color.FgHiGreen)),
+			Number:    ColorRenderFunc(color.New(color.FgHiMagenta)),
+			Null:      ColorRenderFunc(color.New(color.FgHiRed)),
+			Indicator: ColorRenderFunc(color.New(color.FgHiWhite)),
 		},
 		HighlightedProps: RenderProperties{
-			MapKey: ColorRenderFunc(color.New(color.FgCyan, color.BgHiYellow)),
-			Anchor: ColorRenderFunc(color.New(color.FgYellow, color.BgHiYellow)),
-			Alias:  ColorRenderFunc(color.New(color.FgYellow, color.BgHiYellow)),
-			Bool:   ColorRenderFunc(color.New(color.FgMagenta, color.BgHiYellow)),
-			String: ColorRenderFunc(color.New(color.FgGreen, color.BgHiYellow)),
-			Number: ColorRenderFunc(color.New(color.FgMagenta, color.BgHiYellow)),
+			MapKey:    ColorRenderFunc(color.New(color.FgCyan, color.BgHiYellow)),
+			Anchor:    ColorRenderFunc(color.New(color.FgYellow, color.BgHiYellow)),
+			Alias:     ColorRenderFunc(color.New(color.FgYellow, color.BgHiYellow)),
+			Bool:      ColorRenderFunc(color.New(color.FgMagenta, color.BgHiYellow)),
+			String:    ColorRenderFunc(color.New(color.FgGreen, color.BgHiYellow)),
+			Number:    ColorRenderFunc(color.New(color.FgMagenta, color.BgHiYellow)),
+			Null:      ColorRenderFunc(color.New(color.FgHiRed, color.BgHiYellow)),
+			Indicator: ColorRenderFunc(color.New(color.FgHiWhite, color.BgHiYellow)),
 		},
 		LineNumberFormat: func(n int, all int) string {
 			allLen := len(fmt.Sprintf("%d", all))
