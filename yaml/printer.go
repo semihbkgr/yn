@@ -210,7 +210,7 @@ func QueryTokens(file *ast.File, path string) QueryResult {
 		}
 		nodes = append(nodes, n)
 
-		tokens := TokensFromNode(n)
+		tokens := tokensFromNode(n)
 		for _, t := range tokens {
 			tokensMap[*t.Position] = t
 			parentNodeMap[*t.Position] = n
@@ -225,7 +225,7 @@ func QueryTokens(file *ast.File, path string) QueryResult {
 }
 
 func FindNode(n ast.Node, path string) ast.Node {
-	if MatchPaths(n, path) {
+	if matchPaths(n, path) {
 		return n
 	}
 
@@ -258,28 +258,28 @@ func FindNode(n ast.Node, path string) ast.Node {
 	return nil
 }
 
-func TokensFromNode(n ast.Node) token.Tokens {
+func tokensFromNode(n ast.Node) token.Tokens {
 	var tokens token.Tokens
 	tokens = append(tokens, n.GetToken())
 
 	switch node := n.(type) {
 	case *ast.MappingNode:
 		for _, valueNode := range node.Values {
-			tokens = append(tokens, TokensFromNode(valueNode)...)
+			tokens = append(tokens, tokensFromNode(valueNode)...)
 		}
 	case *ast.MappingValueNode:
-		tokens = append(tokens, TokensFromNode(node.Key)...)
-		tokens = append(tokens, TokensFromNode(node.Value)...)
+		tokens = append(tokens, tokensFromNode(node.Key)...)
+		tokens = append(tokens, tokensFromNode(node.Value)...)
 	case *ast.SequenceNode:
 		for _, valueNode := range node.Values {
-			tokens = append(tokens, TokensFromNode(valueNode)...)
+			tokens = append(tokens, tokensFromNode(valueNode)...)
 		}
 	}
 
 	return tokens
 }
 
-func MatchPaths(n ast.Node, path string) bool {
+func matchPaths(n ast.Node, path string) bool {
 	if path == "" {
 		return false
 	}
@@ -292,16 +292,21 @@ func MatchPaths(n ast.Node, path string) bool {
 
 	switch node := n.(type) {
 	case *ast.MappingNode:
-		nodePath = TrimPath(node.Path)
+		nodePath = trimPath(node.Path)
 	}
 
-	nodePath = nodePath[1:]
-
-	re := regexp.MustCompile(`\[(\d+)\]`)
-	nodePath = re.ReplaceAllString(nodePath, ".$1")
-	return nodePath == path
+	queryPath := nodePathToQueryPath(nodePath)
+	return queryPath == path
 }
 
-func TrimPath(path string) string {
+func nodePathToQueryPath(nodePath string) string {
+	if nodePath == "" {
+		return nodePath
+	}
+	re := regexp.MustCompile(`\[(\d+)\]`)
+	return re.ReplaceAllString(nodePath[1:], ".$1")
+}
+
+func trimPath(path string) string {
 	return path[:strings.LastIndex(path, ".")]
 }
