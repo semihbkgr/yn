@@ -36,7 +36,7 @@ type RenderProperties struct {
 
 func (p RenderProperties) RenderFunc(t *token.Token) RenderFunc {
 	if t.Indicator == token.BlockStructureIndicator {
-		return p.RenderFunc(t.Prev)
+		return p.MapKey
 	}
 
 	switch t.PreviousType() {
@@ -90,8 +90,8 @@ func (p *Printer) Print(file *ast.File, path string, lineNumber bool) (string, [
 		_, highlighted := queryResult.TokensMap[*t.Position]
 		parentNode := queryResult.ParentNodeMap[*t.Position]
 		if t.Indicator == token.BlockStructureIndicator {
-			_, highlighted = queryResult.TokensMap[*t.Prev.Position]
-			parentNode = queryResult.ParentNodeMap[*t.Prev.Position]
+			_, highlighted = queryResult.TokensMap[*t.Next.Position]
+			parentNode = queryResult.ParentNodeMap[*t.Next.Position]
 		}
 		renderFunc := p.RenderFunc(t, highlighted)
 
@@ -113,10 +113,11 @@ func (p *Printer) Print(file *ast.File, path string, lineNumber bool) (string, [
 			for idx, src := range lines {
 				indentNum := 0
 				if highlighted && idx > 0 {
-					indentNum = parentNode.GetToken().Position.IndentNum
+					indentNum = min(parentNode.GetToken().Position.IndentNum, len(src))
 				}
 
 				line := fmt.Sprintf("%s%s", strings.Repeat(" ", indentNum), renderFunc(src[indentNum:]))
+
 				linePrefix := ""
 				if lineNumber {
 					linePrefix = p.LineNumberFormat(currentLineNumber, totalLineNumber)
