@@ -38,6 +38,8 @@ type model struct {
 func initModel() model {
 	v := viewport.New(0, 0)
 	i := textinput.New()
+	i.ShowSuggestions = true
+
 	i.TextStyle = lipgloss.NewStyle().Bold(true)
 
 	h := help.New()
@@ -59,6 +61,8 @@ func NewModel(opts Options) tea.Model {
 	// fix the tokens' positions
 	file, _ := parser.Parse(lexer.Tokenize(opts.File.String()), parser.ParseComments)
 	m.file = file
+
+	m.input.SetSuggestions(yaml.Suggestions(m.file))
 
 	m.Navigate()
 
