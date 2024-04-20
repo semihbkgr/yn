@@ -1,8 +1,10 @@
 # yn
 
-`yn` (yaml navigator) is a command-line utility tool crafted for exploration of extensive and multi-documented yaml data. It navigates and highlights the part of the data you are seeking, making it an ideal choice for handling large data in yaml format. Featuring dynamic navigation, it allows seamless traversal through a yaml structures, even when you don't know the path of fields. It also offers autocompletion for field paths.
+`yn` (yaml navigator) is a command-line utility tool crafted for exploration of extensive and multi-documented yaml data. It navigates and highlights the part of the data you are seeking, making it easier to traverse through large data in yaml format. It offers autocompletion and suggestions for field paths.
 
 It is mainly designed to simplify the process of working with Kubernetes manifest yaml files.
+
+![terminal](/images/terminal.png)
 
 ## Installation
 
@@ -18,9 +20,9 @@ The data is supplied through `stdin`.
 $ cat data.yaml | yn
 ```
 
-type the path to navigate `.person.address.city`
+type the path to traverse `.person.address.city`
 
-`ctrl+l` to display line numbers
+![example](/images/example.png)
 
 makes it easy to explore multi-doc outputs of helm templates.
 
@@ -28,4 +30,4 @@ makes it easy to explore multi-doc outputs of helm templates.
 $ helm template my-release oci://ghcr.io/nginxinc/charts/nginx-ingress | yn
 ```
 
-![terminal](terminal.png)
+![multidoc](/images/multidoc.png)
