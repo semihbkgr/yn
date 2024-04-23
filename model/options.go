@@ -78,11 +78,10 @@ func RunProgram(ctx context.Context, opts *Options) (string, error) {
 		tea.WithContext(ctx),
 	)
 
-	m, err := p.Run()
+	_, err := p.Run()
 	if err != nil {
 		return "", err
 	}
 
-	model := m.(model)
-	return model.Output(), nil
+	return "", nil
 }
