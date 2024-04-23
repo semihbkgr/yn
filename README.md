@@ -27,7 +27,7 @@ type the path to traverse `.person.address.city`
 makes it easy to explore multi-doc outputs of helm templates.
 
 ```bash
-$ helm template my-release oci://ghcr.io/nginxinc/charts/nginx-ingress | yn
+$ helm template ingress-nginx ingress-nginx --repo https://kubernetes.github.io/ingress-nginx --namespace ingress-nginx | yn
 ```
 
 ![multidoc](/images/multidoc.png)
